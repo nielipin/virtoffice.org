@@ -1,0 +1,37 @@
+---
+- name: install mariadb-server
+  yum: name=mariadb-server state=latest
+
+- name: install MySQL-python
+  yum: name=MySQL-python state=latest
+
+- name: start mariadb-server
+  systemd:
+    name: mariadb
+    state: started
+    enabled: True
+
+- name: Change root user password on first run
+  mysql_user: 
+    login_user: root
+    login_password: "{{ mysql_root }}"
+    check_implicit_admin: yes
+    name: root
+    password: "{{ mysql_root }}"
+    priv: '*.*:ALL,GRANT'
+
+- name: delete anonymous MySQL user
+  mysql_user: 
+    login_user: root
+    login_password: "{{ mysql_root }}"
+    name: ''
+    host_all: yes
+    state: "absent"
+
+- name: create dummy /usr/bin/mysqld symlink
+  file:
+    src: /usr/libexec/mysqld
+    dest: /usr/bin/mysqld
+    state: link
+
+

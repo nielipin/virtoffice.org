@@ -1,0 +1,88 @@
+---
+- name: install epel
+  yum: name=epel-release state=latest
+
+- name: install unzip
+  yum: name=unzip state=latest
+
+- name: upgrade all packages
+  yum: name=* state=latest
+ 
+- name: clean ghost www dir
+  file:
+    path: /var/www/ghost/
+    state: absent
+ 
+- name: clean ghost zip
+  file:
+    path: /tmp/ghost-latest.zip
+    state: absent
+
+- name: check if firewalld exists
+  stat: path=/lib/systemd/system/firewalld.service
+  register: firewalld_st
+
+- name: check if iptables.service exists
+  stat: path=/lib/systemd/system/iptables.service
+  register: iptables_st
+
+- name: disable firewalld
+  service:
+    name: firewalld
+    enabled: no
+    state: stopped
+  when: firewalld_st.stat.exists == True
+
+- name: install iptables
+  yum: name=iptables-services  state=latest
+
+- name: enable iptables-services
+  service:
+    name: iptables
+    enabled: yes
+    state: started
+  when: iptables_st.stat.exists == True
+
+- name: iptables SSH
+  iptables:
+    chain: INPUT
+    ctstate: 'ESTABLISHED,RELATED'
+    jump: ACCEPT
+
+- name: iptables SSH
+  iptables:
+    chain: INPUT
+    action: insert
+    protocol: tcp
+    destination_port: 22
+    jump: ACCEPT
+
+- name: iptables HTTP
+  iptables:
+    chain: INPUT
+    action: insert
+    protocol: tcp
+    destination_port: 80
+    jump: ACCEPT
+
+- name: iptables HTTPS
+  iptables:
+    chain: INPUT
+    action: insert
+    protocol: tcp
+    destination_port: 443
+    jump: ACCEPT
+
+- name: iptables DROP
+  iptables:
+    chain: INPUT
+    jump: DROP
+
+- name: save iptables rules
+  shell: "iptables-save > /etc/sysconfig/iptables"
+
+- name: enable iptables-services
+  service:
+    name: iptables
+    enabled: yes
+    state: restarted

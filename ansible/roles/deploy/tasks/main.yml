@@ -1,0 +1,69 @@
+---
+#- name: Download ghost
+#  get_url:
+#    url: https://ghost.org/zip/ghost-latest.zip
+#    dest: /tmp/ghost-latest.zip
+
+- name: install nodejs
+  yum: name=nodejs state=latest
+
+- name: install nginx
+  yum: name=nginx state=latest
+
+- name: install npm
+  yum: name=npm state=latest
+
+- name: create ghost dir
+  file:
+    path: /var/www/ghost
+    state: directory
+    owner: "{{ ansible_env.SUDO_USER }}"
+    group: "{{ ansible_env.SUDO_USER }}"
+
+    #- name: Extract ghost-latest.zip
+    #  unarchive:
+    #    src: /tmp/ghost-latest.zip
+    #    dest: /var/www/ghost
+    #    copy: no
+
+    #- name: npm
+    #  command: /usr/bin/npm install --production
+
+- name: Install ghost-cli
+  npm:
+    name: ghost-cli
+    global: yes
+
+- name: ghost selinux tcp port
+  command: /usr/sbin/semanage/semanage port -a -t http_port_t -p tcp 2368
+
+- name: install ghost
+  become: no
+  command: ghost install --url=http://{{ IP }} --db=mysql --dbhost=localhost --dbuser=root --dbpass={{ mysql_root }} --dbname=ghost --no-prompt --no-stack
+  args:
+    chdir: /var/www/ghost/
+
+- name: create nginx site dirs
+  file:
+    path: /etc/nginx/default.d/{{ item }}
+    state: directory
+  with_items:
+    - sites-available
+    - sites-enabled
+
+- name: create nginx ghost config
+  template: 
+    src: templates/ghost.j2 
+    dest: "/etc/nginx/default.d/sites-available/ghost"
+
+- name: enable nginx ghost config
+  file:
+    src: /etc/nginx/default.d/sites-available/ghost
+    dest: /etc/nginx/default.d/sites-enabled/ghost
+    state: link
+ 
+- name: enable nginx
+  service:
+    name: nginx
+    enabled: yes
+    state: restarted

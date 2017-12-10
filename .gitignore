@@ -1,0 +1,3 @@
+ansible/hosts
+ansible/ansible.cfg
+ansible/host_vars/ghost
